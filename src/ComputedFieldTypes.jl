@@ -25,7 +25,7 @@ end
 "
 function _computed(typeexpr::Expr)
     typeexpr.head === :type || error("expected a type expression")
-    if typeexpr.args[2].head == :(<:)
+    if isa(typeexpr.args[2], Expr) && typeexpr.args[2].head == :(<:)
         curly = make_curly(typeexpr.args[2].args[1])
         typeexpr.args[2].args[1] = curly
     else
