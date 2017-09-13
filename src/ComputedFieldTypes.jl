@@ -81,6 +81,9 @@ end
 "
 make_curly(curly::ANY) = error("expected an apply-type expression")
 function make_curly(curly::Expr)
+    if curly.head == :(<:)
+        return make_curly(curly.args[1])
+    end
     if curly.head !== :curly || !isa(curly.args[1], Symbol)
         make_curly(nothing)
     end
