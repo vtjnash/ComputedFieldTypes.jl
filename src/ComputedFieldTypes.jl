@@ -25,8 +25,13 @@ end
 "
 function _computed(typeexpr::Expr)
     typeexpr.head === :type || error("expected a type expression")
-    curly = make_curly(typeexpr.args[2])
-    typeexpr.args[2] = curly
+    if typeexpr.args[2].head == :(<:)
+        curly = make_curly(typeexpr.args[2].args[1])
+        typeexpr.args[2].args[1] = curly
+    else
+        curly = make_curly(typeexpr.args[2])
+        typeexpr.args[2] = curly
+    end
     tname = curly.args[1]::Symbol
 
     # extract list of declared type variables
@@ -81,9 +86,6 @@ end
 "
 make_curly(curly::ANY) = error("expected an apply-type expression")
 function make_curly(curly::Expr)
-    if curly.head == :(<:)
-        return make_curly(curly.args[1])
-    end
     if curly.head !== :curly || !isa(curly.args[1], Symbol)
         make_curly(nothing)
     end
