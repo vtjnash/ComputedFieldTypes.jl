@@ -21,7 +21,7 @@ macro computed(typeexpr::Expr)
 end
 
 "
-# the bulk of the work to 
+# the bulk of the work to
 "
 function _computed(typeexpr::Expr)
     typeexpr.head === :type || error("expected a type expression")
@@ -152,7 +152,7 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
 
         # rewrite constructor declarations to explicitly only involve the declared type-variables
         # this involves rewriting `A` as `(::Type{A{T}}){T}`
-        if (e.head === :(=) || e.head === :function) && e.args[1].head === :call
+        if e.head === :function || (e.head === :(=) && isa(e.args[1], Expr) && e.args[1].head === :call)
             pfname = e.args[1].args
             if isa(pfname[1], Expr) && pfname[1].head === :curly
                 pfname = pfname[1].args
