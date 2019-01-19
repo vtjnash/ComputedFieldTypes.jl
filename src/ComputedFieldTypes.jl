@@ -151,7 +151,7 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
         end
 
         # rewrite constructor declarations to explicitly only involve the declared type-variables
-        # this involves rewriting `A` as `(::Type{A{T}}){T}`
+        # this involves rewriting `A` as `(::Type{A{T...}}) where {T...}`
         if (e.head === :(=) || e.head === :function) && e.args[1].head === :call
             pfname = e.args[1].args
             if isa(pfname[1], Expr) && pfname[1].head === :curly
@@ -159,17 +159,17 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
             end
             if pfname[1] === tname
                 pfname[1] = make_Type_expr(tname, decl_tvars)
-                curly = e.args[1].args[1]
-                if !(isa(curly, Expr) && curly.head === :curly)
-                    curly = Expr(:where, e.args[1])
-                    e.args[1] = curly
-                elseif isa(curly, Expr) && curly.head === :curly
-                    wher = curly.args[2:end]
-                    curly = Expr(:where, Expr(:call, e.args[1].args[1].args[1], e.args[1].args[2]))
-                    e.args[1] = curly
-                    append!(curly.args, wher)
+                param = e.args[1].args[1]
+                if !(isa(param, Expr) && param.head === :curly)
+                    param = Expr(:where, e.args[1])
+                    e.args[1] = param
+                elseif isa(param, Expr) && param.head === :curly
+                    vars = param.args[2:end]
+                    param = Expr(:where, Expr(:call, e.args[1].args[1].args[1], e.args[1].args[2]))
+                    e.args[1] = param
+                    append!(param.args, vars)
                 end
-                append!(curly.args, decl_tvars)
+                append!(param.args, decl_tvars)
             end
         end
     end
