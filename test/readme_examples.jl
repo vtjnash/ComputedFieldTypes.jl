@@ -1,4 +1,4 @@
-@computed type A{V <: AbstractVector}
+@computed struct A{V <: AbstractVector}
     a::eltype(V)
 end
 
@@ -7,13 +7,13 @@ end
     @test a.a === Int(3)
 end
 
-@computed type B{N, M, T}
+@computed struct B{N, M, T}
     a::NTuple{N + M, T}
     B(x::T) = new{N, M, T}(ntuple(i -> x, N + M))
     B{S}(x::S) = B{N, M, T}(convert(T, x))
 end
 
-@computed type C{T <: Number}
+@computed struct C{T <: Number}
     a::typeof(one(T) / one(T))
     C() = new(0)
     function C(x)

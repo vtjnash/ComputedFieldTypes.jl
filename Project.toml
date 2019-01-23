@@ -1,0 +1,12 @@
+name = "ComputedFieldTypes"
+uuid = "c3a80a52-1f3c-11e9-298b-799e1370e7f3"
+authors = ["Jameson Nash <vtjnash@gmail.com>"]
+version = "0.1.0"
+
+[deps]
+
+[extras]
+Test = "8dfed614-e22c-5e08-85e1-65c5234f0b40"
+
+[targets]
+test = ["Test"]
