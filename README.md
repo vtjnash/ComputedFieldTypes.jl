@@ -10,7 +10,7 @@ They are simply intended as demonstrations of `ComputedFieldTypes`.
 For simple cases, a default constructor will be added, if none is specified:
 
 ```julia
-@computed type A{V <: AbstractVector}
+@computed struct A{V <: AbstractVector}
     a::eltype(V)
 end
 a = A{Vector{Int}}(3.0)
@@ -21,13 +21,13 @@ It is also possible to declare your own constructor,
 with extra type variables, parameterized, etc.:
 
 ```julia
-@computed type B{N, M, T}
+@computed struct B{N, M, T}
     a::NTuple{N + M, T}
     B(x::T) = new{N, M, T}(ntuple(i -> x, N + M))
     B{S}(x::S) = B{N, M, T}(convert(T, x))
 end
 
-@computed type C{T <: Number}
+@computed struct C{T <: Number}
     a::typeof(one(T) / one(T))
     C() = new(0)
     function C(x)

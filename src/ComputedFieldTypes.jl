@@ -24,7 +24,7 @@ end
 # the bulk of the work to
 "
 function _computed(typeexpr::Expr)
-    typeexpr.head === :type || error("expected a type expression")
+    typeexpr.head === :struct || error("expected a type expression")
     curly = make_curly(typeexpr.args[2])
     typeexpr.args[2] = curly
     tname = curly.args[1]::Symbol
@@ -54,7 +54,7 @@ function _computed(typeexpr::Expr)
             if f.head === :(::) && isa(f.args[1], Symbol)
                 push!(fieldnames, f.args[1]::Symbol)
                 f.args[2] = getenv!(f.args[2], curly.args, def)
-            elseif f.head !== :line
+            elseif typeof(f) !== :LineNumberNode
                 push!(ctors, f)
             end
         end
@@ -64,7 +64,7 @@ function _computed(typeexpr::Expr)
     if isempty(ctors)
         # normally, Julia would add 3 default constructors here
         # however, two of those are not computable, so we don't add them
-        push!(fields, Expr(:function, Expr(:call, Expr(:curly, make_Type_expr(tname, decl_tvars), decl_tvars...), fieldnames...),
+        push!(fields, Expr(:function, Expr(:where, Expr(:call, make_Type_expr(tname, decl_tvars), fieldnames...), decl_tvars...),
                            Expr(:block, Expr(:return, Expr(:call, make_new_expr(:new, decl_tvars, def), fieldnames...)))))
     else
         for e in ctors
@@ -79,7 +79,7 @@ end
 "
 # given an apply-type expression (`T` or `T{...}`), return `Expr(:curly, T, ...)`
 "
-make_curly(curly::ANY) = error("expected an apply-type expression")
+make_curly(@nospecialize curly) = error("expected an apply-type expression")
 function make_curly(curly::Expr)
     if curly.head !== :curly || !isa(curly.args[1], Symbol)
         make_curly(nothing)
@@ -94,7 +94,7 @@ end
 # replace anything that isn't computable by apply_type
 # with a dummy type-variable
 "
-getenv!(e::ANY, tvars, def) = e
+getenv!(@nospecialize(e), tvars, def) = e
 function getenv!(e::Expr, tvars, def)
     if e.head === :curly || e.head === :where
         for i = 1:length(e.args)
@@ -123,15 +123,15 @@ make_new_expr(tname, decl_tvars, def) = Expr(:curly, tname, decl_tvars..., def..
 # compute the leaf `T{def}` expression that is equivalent for the new type declaration
 "
 function make_fulltype_expr(tname, decl_tvars, def)
-    return Expr(:function, Expr(:call, Expr(:curly, Core.GlobalRef(ComputedFieldTypes, :fulltype), decl_tvars...),
-                                       make_Type_expr(tname, decl_tvars)),
+    return Expr(:function, Expr(:where, Expr(:call, Core.GlobalRef(ComputedFieldTypes, :fulltype), make_Type_expr(tname, decl_tvars)),
+                                       decl_tvars...),
                            Expr(:block, Expr(:return, make_new_expr(tname, decl_tvars, def))))
 end
 
 "
 # rewrite the constructors to capture only the intended values
 "
-rewrite_new!(e::ANY, tname::Symbol, decl_tvars, def) = nothing
+rewrite_new!(@nospecialize(e), tname::Symbol, decl_tvars, def) = nothing
 function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
     if e.head !== :line
         for i = 1:length(e.args)
@@ -151,7 +151,7 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
         end
 
         # rewrite constructor declarations to explicitly only involve the declared type-variables
-        # this involves rewriting `A` as `(::Type{A{T}}){T}`
+        # this involves rewriting `A` as `(::Type{A{T...}}) where {T...}`
         if e.head === :function || (e.head === :(=) && isa(e.args[1], Expr) && e.args[1].head === :call)
             pfname = e.args[1].args
             if isa(pfname[1], Expr) && pfname[1].head === :curly
@@ -159,12 +159,17 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
             end
             if pfname[1] === tname
                 pfname[1] = make_Type_expr(tname, decl_tvars)
-                curly = e.args[1].args[1]
-                if !(isa(curly, Expr) && curly.head === :curly)
-                    curly = Expr(:curly, curly)
-                    e.args[1].args[1] = curly
+                param = e.args[1].args[1]
+                if !(isa(param, Expr) && param.head === :curly)
+                    param = Expr(:where, e.args[1])
+                    e.args[1] = param
+                elseif isa(param, Expr) && param.head === :curly
+                    vars = param.args[2:end]
+                    param = Expr(:where, Expr(:call, e.args[1].args[1].args[1], e.args[1].args[2]))
+                    e.args[1] = param
+                    append!(param.args, vars)
                 end
-                append!(curly.args, decl_tvars)
+                append!(param.args, decl_tvars)
             end
         end
     end
