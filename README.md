@@ -1,5 +1,8 @@
 # ComputedFieldTypes
 
+[![Build Status](https://github.com/vtjnash/ComputedFieldTypes.jl/workflows/CI/badge.svg)](https://github.com/vtjnash/ComputedFieldTypes.jl/actions/workflows/CI.yml?query=branch%3Amaster)
+[![Coverage Status](https://coveralls.io/repos/github/vtjnash/ComputedFieldTypes.jl/badge.svg)](https://coveralls.io/github/vtjnash/ComputedFieldTypes.jl)
+
 Build types in Julia where some fields have computed types.
 
 # Examples
