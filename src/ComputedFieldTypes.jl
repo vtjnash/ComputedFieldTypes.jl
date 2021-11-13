@@ -16,8 +16,8 @@ fulltype(T::Type) = T
 Allows declaration of a type expression where some of the fields types are arbitrary computed functions of other type parameters.
 It's suggested that those expressions be `const` (return the same value for the same inputs), but that is not essential.
 """
-macro computed(typeexpr::Expr)
-    return esc(_computed(typeexpr)) # macro hygiene is already handled, so escape everything
+macro computed(typeexpr::Expr, newexpr=nothing)
+    return esc(_computed(typeexpr, newexpr)) # macro hygiene is already handled, so escape everything
 end
 
 """
@@ -25,7 +25,7 @@ end
 
 the bulk of the work to compute the AST transform
 """
-function _computed(typeexpr::Expr)
+function _computed(typeexpr::Expr, newexpr=nothing)
     typeexpr.head === :struct || error("expected a type expression")
     if isa(typeexpr.args[2], Expr) && typeexpr.args[2].head == :(<:)
         curly = make_curly(typeexpr.args[2].args[1])
@@ -72,7 +72,7 @@ function _computed(typeexpr::Expr)
         # normally, Julia would add 3 default constructors here
         # however, two of those are not computable, so we don't add them
         push!(fields, Expr(:function, Expr(:where, Expr(:call, make_Type_expr(tname, decl_tvars), fieldnames...), decl_tvars...),
-                           Expr(:block, Expr(:return, Expr(:call, make_new_expr(:new, decl_tvars, def), fieldnames...)))))
+                           isnothing(newexpr) ? Expr(:block, Expr(:return, Expr(:call, make_new_expr(:new, decl_tvars, def), fieldnames...))) : newexpr))
     else
         for e in ctors
             rewrite_new!(e, tname, decl_tvars, def)
