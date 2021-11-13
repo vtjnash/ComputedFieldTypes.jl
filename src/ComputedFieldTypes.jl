@@ -72,7 +72,7 @@ function _computed(typeexpr::Expr, newexpr=nothing)
         # normally, Julia would add 3 default constructors here
         # however, two of those are not computable, so we don't add them
         push!(fields, Expr(:function, Expr(:where, Expr(:call, make_Type_expr(tname, decl_tvars), fieldnames...), decl_tvars...),
-                           isnothing(newexpr) ? Expr(:block, Expr(:return, Expr(:call, make_new_expr(:new, decl_tvars, def), fieldnames...))) : newexpr))
+                           newexpr === nothing ? Expr(:block, Expr(:return, Expr(:call, make_new_expr(:new, decl_tvars, def), fieldnames...))) : newexpr))
     else
         for e in ctors
             rewrite_new!(e, tname, decl_tvars, def)
