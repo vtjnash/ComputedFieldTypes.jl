@@ -16,7 +16,7 @@ fulltype(T::Type) = T
 Allows declaration of a type expression where some of the fields types are arbitrary computed functions of other type parameters.
 It's suggested that those expressions be `const` (return the same value for the same inputs), but that is not essential.
 """
-macro computed(typeexpr::Expr, newexpr=nohthing)
+macro computed(typeexpr::Expr, newexpr=nothing)
     return esc(_computed(__module__, typeexpr, newexpr)) # macro hygiene is already handled, so escape everything
 end
 
