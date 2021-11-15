@@ -17,15 +17,38 @@ Allows declaration of a type expression where some of the fields types are arbit
 It's suggested that those expressions be `const` (return the same value for the same inputs), but that is not essential.
 """
 macro computed(typeexpr::Expr)
-    return esc(_computed(typeexpr)) # macro hygiene is already handled, so escape everything
+    return esc(_computed(__module__, typeexpr)) # macro hygiene is already handled, so escape everything
 end
 
 """
-    _computed(typeexpr::Expr)
+    find_struct_decl(block::Expr)
+
+Locate a :struct decl inside a :block of expressions.
+"""
+function find_struct_decl(block::Expr)
+    inside = block, (block, 0)
+    for i in 1:length(block.args)
+        ex, exinside = block.args[i], (block, i)
+        if Meta.isexpr(ex, :block)
+            ex, exinside = find_struct_decl(ex)
+        end
+        if Meta.isexpr(ex, :struct)
+            inside[1] === block || error("expected a single type expression")
+            inside = ex, exinside
+        end
+    end
+    return inside
+end
+
+"""
+    _computed(__module__::Module, typeexpr::Expr)
 
 the bulk of the work to compute the AST transform
 """
-function _computed(typeexpr::Expr)
+function _computed(__module__::Module, typeexpr::Expr)
+    typeexpr = outside = macroexpand(__module__, typeexpr)::Expr # to expand @static
+    inside = nothing
+    typeexpr.head === :block && ((typeexpr, inside) = find_struct_decl(typeexpr))
     typeexpr.head === :struct || error("expected a type expression")
     if isa(typeexpr.args[2], Expr) && typeexpr.args[2].head == :(<:)
         curly = make_curly(typeexpr.args[2].args[1])
@@ -80,7 +103,10 @@ function _computed(typeexpr::Expr)
     end
 
     # add some extra function declarations for convenience
-    return Expr(:block, typeexpr, make_fulltype_expr(tname, decl_tvars, def))
+    typeexpr = Expr(:block, typeexpr, make_fulltype_expr(tname, decl_tvars, def), nothing)
+    inside === nothing && return typeexpr
+    inside[1].args[inside[2]] = typeexpr
+    return outside
 end
 
 """
