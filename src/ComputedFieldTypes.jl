@@ -133,7 +133,7 @@ with a dummy type-variable
 """
 getenv!(@nospecialize(e), tvars, def) = e
 function getenv!(e::Expr, tvars, def)
-    if e.head === :curly || e.head === :where
+    if e.head === :curly || e.head === :where || e.head === :.
         for i = 1:length(e.args)
             e.args[i] = getenv!(e.args[i], tvars, def)
         end
