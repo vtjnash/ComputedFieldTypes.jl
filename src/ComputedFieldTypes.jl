@@ -2,6 +2,8 @@ module ComputedFieldTypes
 
 export @computed, fulltype
 
+const _record = Dict{Module, Vector{Pair{Expr, Expr}}}()
+
 """
     fulltype(::Type)
 
@@ -77,18 +79,21 @@ function _computed(__module__::Module, typeexpr::Expr)
     ctors = Expr[] # non-field expressions
     def = Expr[] # definitions for field-type calculations
     fieldnames = Symbol[]
+    recurse = Ref(false)
     for f in fields
         if isa(f, Symbol)
             push!(fieldnames, f.args[1]::Symbol)
         elseif isa(f, Expr)
             if f.head === :(::) && isa(f.args[1], Symbol)
                 push!(fieldnames, f.args[1]::Symbol)
-                f.args[2] = getenv!(f.args[2], curly.args, def)
+                f.args[2] = getenv!(f.args[2], curly.args, def, __module__, recurse)
             elseif typeof(f) !== :LineNumberNode
                 push!(ctors, f)
             end
         end
     end
+    mod_record = get!(_record, __module__, Vector{Pair{Expr, Expr}}[])
+    push!(mod_record, Pair(:($tname{$(decl_tvars...)}), :($tname{$(decl_tvars...), $(def...)})))
 
     # rewrite constructors
     if isempty(ctors)
@@ -104,8 +109,10 @@ function _computed(__module__::Module, typeexpr::Expr)
 
     # add some extra function declarations for convenience
     typeexpr = Expr(:block, typeexpr, make_fulltype_expr(tname, decl_tvars, def), nothing)
+    recurse[] && (typeexpr = _computed(__module__, typeexpr))
     inside === nothing && return typeexpr
     inside[1].args[inside[2]] = typeexpr
+    recurse[] && (outside = _computed(__module__, outside))
     return outside
 end
 
@@ -131,12 +138,22 @@ end
 replace anything that isn't computable by apply_type
 with a dummy type-variable
 """
-getenv!(@nospecialize(e), tvars, def) = e
-function getenv!(e::Expr, tvars, def)
+getenv!(@nospecialize(e), tvars, def, mod, recurse) = e
+function getenv!(e::Expr, tvars, def, mod, recurse)
     if e.head === :curly || e.head === :where
         for i = 1:length(e.args)
-            e.args[i] = getenv!(e.args[i], tvars, def)
+            e.args[i] = getenv!(e.args[i], tvars, def, mod, recurse)
         end
+        for (m, pairs) in _record
+            m === mod || continue
+            for p in pairs
+                p.first == e || continue
+                e = p.second
+                recurse[] = true
+                @goto ret
+            end
+        end
+        @label ret
         return e
     else
         v = gensym()
@@ -182,7 +199,6 @@ function rewrite_new!(e::Expr, tname::Symbol, decl_tvars, def)
         for i = 1:length(e.args)
             rewrite_new!(e.args[i], tname, decl_tvars, def)
         end
-
         # rewrite any calls to `new()` or `new{...}()` to append our dummy type variables
         if e.head === :call && e.args[1] === :new
             curly = Expr(:curly, e.args[1])
