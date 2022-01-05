@@ -84,7 +84,7 @@ function _computed(__module__::Module, typeexpr::Expr)
             if f.head === :(::) && isa(f.args[1], Symbol)
                 push!(fieldnames, f.args[1]::Symbol)
                 f.args[2] = getenv!(f.args[2], curly.args, def)
-            elseif typeof(f) !== :LineNumberNode
+            elseif f.head !== :line
                 push!(ctors, f)
             end
         end
@@ -133,8 +133,30 @@ with a dummy type-variable
 """
 getenv!(@nospecialize(e), tvars, def) = e
 function getenv!(e::Expr, tvars, def)
-    if e.head === :curly || e.head === :where || e.head === :.
-        for i = 1:length(e.args)
+    if e.head === :curly || e.head === :where || (e.head === :. && e.args[2] isa Symbol)
+        e1 = getenv!(e.args[1], tvars, def)
+        if e1 isa Symbol && e1 !== e.args[1]
+            @assert tvars[end] === e1
+            def[end] = e
+            return e1
+        end
+        e.args[1] = e1
+        if e.head === :where
+            e2 = e.args[2]
+            if e2 isa Expr
+                if e2.head === :<: || e2.head === :>:
+                    bnd = e2.args[2]
+                    e2.args[2] = getenv!(bnd, tvars, def)
+                elseif e2.head === :comparison && length(e2.args) === 5 && e2.args[2] === :<: && e2.args[4] === :<:
+                    lb = e2.args[1]
+                    e2.args[1] = getenv!(lb, tvars, def)
+                    ub = e2.args[5]
+                    e2.args[5] = getenv!(ub, tvars, def)
+                end
+            end
+            return e
+        end
+        for i = 2:length(e.args)
             e.args[i] = getenv!(e.args[i], tvars, def)
         end
         return e
