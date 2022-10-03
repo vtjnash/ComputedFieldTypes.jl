@@ -79,7 +79,7 @@ function _computed(__module__::Module, typeexpr::Expr)
     fieldnames = Symbol[]
     for f in fields
         if isa(f, Symbol)
-            push!(fieldnames, f.args[1]::Symbol)
+            push!(fieldnames, f)
         elseif isa(f, Expr)
             if f.head === :(::) && isa(f.args[1], Symbol)
                 push!(fieldnames, f.args[1]::Symbol)
