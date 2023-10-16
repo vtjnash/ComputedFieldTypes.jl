@@ -1,7 +1,7 @@
 name = "ComputedFieldTypes"
 uuid = "459fdd68-db75-56b8-8c15-d717a790f88e"
 authors = ["Jameson Nash <vtjnash@gmail.com>"]
-version = "1.0.1"
+version = "1.0.2"
 
 [deps]
 
